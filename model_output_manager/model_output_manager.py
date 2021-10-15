@@ -55,7 +55,7 @@ def get_run_entry(param_dict, output_dir, prompt_for_user_input=True):
     Get a run ID and directory that corresponds to param_dict. If a
     corresponding row of the run table does not exist, create
     a new row and generate a new directory for the run and return the
-    corresponding new ID and new directory.
+    corresponding new ID.
 
     Parameters
     ----------
@@ -73,8 +73,6 @@ def get_run_entry(param_dict, output_dir, prompt_for_user_input=True):
     int
         The number uniquely identifying the run. This is also the index for
         the run in the run table.
-    str
-        The output directory for the run.
     """
     output_dir = Path(output_dir)
     table_path = output_dir/TABLE_NAME
@@ -103,6 +101,8 @@ Please specify these keys in param_dict:""")
     f"""New parameter '{new_col_key}' detected. Please enter value for previous
 runs.
 Enter value: """)
+            if new_param_value is '':
+                new_param_value = 'na'
             new_param_value = str(new_param_value)
             param_df[new_col_key] = new_param_value
     else:
