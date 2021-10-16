@@ -191,19 +191,24 @@ class Memory:
             if val.default is not inspect.Parameter.empty
         }
         funcname = func.__name__
+        isignore = ignore is not None
 
         @functools.wraps(func)
         def memoized_func(*args, **kwargs):
             kwarg_names_unset_local = kwarg_names_unset.copy()
             arg_dict = {}
             for k, arg in enumerate(args):
-                arg_dict[arg_names[k]] = arg
+                arg_name = arg_names[k]
+                if isignore and arg_name not in ignore:
+                    arg_dict[arg_name] = arg
                 kwarg_names_unset_local.remove(arg_names[k])
             for kwarg in kwargs:
-                arg_dict[kwarg] = kwargs[kwarg]
+                if isignore and kwarg not in ignore:
+                    arg_dict[kwarg] = kwargs[kwarg]
                 kwarg_names_unset_local.remove(kwarg)
             for kwarg in kwarg_names_unset_local: 
-                arg_dict[kwarg] = default_kwarg_vals[kwarg]
+                if isignore and kwarg not in ignore:
+                    arg_dict[kwarg] = default_kwarg_vals[kwarg]
             tabledir = self.output_dir/funcname
             tabledir.mkdir(parents=True, exist_ok=True)
             load = run_exists(arg_dict, tabledir)
@@ -250,13 +255,13 @@ if __name__ == '__main__':
     print()
     memory = Memory(output_dir)
     
-    @memory.cache(verbose=1)
-    def foo(arg1, arg2=3):
+    @memory.cache(verbose=1, ignore=['ignored_arg'])
+    def foo(arg1, arg2=3, ignored_arg=4):
         return 2*arg1 + arg2
     
-    foo(1, 2)
+    foo(1, 2, 3)
     foo(1)
-    foo(1, 2)
+    foo(1, 2, 2)
     print()
 
 
