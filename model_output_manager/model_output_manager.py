@@ -101,7 +101,7 @@ Please specify these keys in param_dict:""")
     f"""New parameter '{new_col_key}' detected. Please enter value for previous
 runs.
 Enter value: """)
-            if new_param_value is '':
+            if new_param_value == '':
                 new_param_value = 'na'
             new_param_value = str(new_param_value)
             param_df[new_col_key] = new_param_value
@@ -122,13 +122,66 @@ Enter value: """)
         run_id = merged.index[0]
     return run_id
 
-class Memory:
-    def __init__(self, out_dir, run_name='run_'):
-        self.out_dir = Path(out_dir)
-        self.run_name = run_name
-        self.out_dir.mkdir(parents=True, exist_ok=True)
+# Parts of this code are taken from joblib.Memory. The copyright statement for
+# the original author is included below.
+#
+# Copyright 2009 Gael Varoquaux <gael dot varoquaux at normalesup dot org>
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+# may be used to endorse or promote products derived from this software without
+# specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
 
-    def cache(self, func):
+class Memory:
+    def __init__(self, output_dir):
+        """
+        Parameters
+        ----------
+        output_dir : str
+            The output directory for the runs. The run table will be stored
+            in this directory, as well as subdirectories corresponding to
+            individual runs.
+        """
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def cache(self, func=None, ignore=None, verbose=1):
+        """
+
+        Parameters
+        ----------
+        func: callable, optional
+            The function to be decorated
+        ignore: list of strings
+            A list of arguments name to ignore in the hashing
+        verbose: integer
+            The verbosity mode of the function.
+        """
+        if func is None:
+            # Partial application, to be able to specify extra keyword
+            # arguments in decorators
+            return functools.partial(self.cache, ignore=ignore, verbose=verbose)
         signature = inspect.signature(func)
         arg_names = list(signature.parameters.keys())
         kwarg_names_unset = set(arg_names)
@@ -137,6 +190,8 @@ class Memory:
             for key, val in signature.parameters.items()
             if val.default is not inspect.Parameter.empty
         }
+        funcname = func.__name__
+
         @functools.wraps(func)
         def memoized_func(*args, **kwargs):
             kwarg_names_unset_local = kwarg_names_unset.copy()
@@ -149,19 +204,26 @@ class Memory:
                 kwarg_names_unset_local.remove(kwarg)
             for kwarg in kwarg_names_unset_local: 
                 arg_dict[kwarg] = default_kwarg_vals[kwarg]
-            load = run_exists(arg_dict, self.out_dir)
-            run_id = get_run_entry(arg_dict, self.out_dir)
-            fdir = self.out_dir/(self.run_name + str(run_id))
-            fdir.mkdir(parents=True, exist_ok=True)
-            filename = 'function_cache.pkl'
-            filepath = fdir/filename
+            tabledir = self.output_dir/funcname
+            tabledir.mkdir(parents=True, exist_ok=True)
+            load = run_exists(arg_dict, tabledir)
+            run_id = get_run_entry(arg_dict, tabledir)
+            filename = f'cache_{run_id}.pkl'
+            filepath = tabledir/filename
             if load:
                 try:
+                    if verbose >= 1:
+                        print("Matching parameters for memoized function",
+                              f"\'{funcname}\' found.\nLoading from previous run.")
+                        print()
                     with open(filepath, 'rb') as fid:
                         return pkl.load(fid)
                 except FileNotFoundError:
                     pass
-            # fn_out = {'out_tuple': func(*args, **kwargs)}
+            if verbose >= 1:
+                print("Calling " + funcname + " with arguments:")
+                print(pd.Series(arg_dict).to_string())
+                print()
             fn_out = func(*args, **kwargs)
             with open(filepath, 'wb') as fid:
                 pkl.dump(fn_out, fid, protocol=5)
@@ -170,11 +232,11 @@ class Memory:
         return memoized_func
 
     def clear(self):
-        shutil.rmtree(self.out_dir)
-
+        shutil.rmtree(self.output_dir)
 
 
 if __name__ == '__main__':
+    # Testing code
     output_dir = Path('output')
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -187,11 +249,10 @@ if __name__ == '__main__':
     run_id = get_run_entry(d, output_dir)
     print()
     memory = Memory(output_dir)
-    memory.clear()
     
-    @memory.cache
-    def foo(a, b=3):
-        return 2*a + b
+    @memory.cache(verbose=1)
+    def foo(arg1, arg2=3):
+        return 2*arg1 + arg2
     
     foo(1, 2)
     foo(1)
