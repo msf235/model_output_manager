@@ -86,11 +86,12 @@ def get_run_entry(param_dict, output_dir, prompt_for_user_input=True):
     
     param_df = pd.read_csv(table_path, index_col=0, dtype=str)
     missing_keys =  set(param_df.columns) - set(param_dict.keys())
-    if len(missing_keys) > 0:
+    if len(missing_keys) > 0 and not ignore_missing:
         print("""The following keys are in the run table but not in param_dict.
 Please specify these keys in param_dict:""")
         print(missing_keys)
         raise ValueError("Missing parameter keys.")
+    param_df = param_df.drop(columns=missing_keys)
 
     extra_keys = set(param_dict.keys()) - set(param_df.columns)
     extra_keys_not_set = extra_keys.copy()
@@ -191,24 +192,19 @@ class Memory:
             if val.default is not inspect.Parameter.empty
         }
         funcname = func.__name__
-        isignore = ignore is not None
 
         @functools.wraps(func)
         def memoized_func(*args, **kwargs):
             kwarg_names_unset_local = kwarg_names_unset.copy()
             arg_dict = {}
             for k, arg in enumerate(args):
-                arg_name = arg_names[k]
-                if isignore and arg_name not in ignore:
-                    arg_dict[arg_name] = arg
+                arg_dict[arg_names[k]] = arg
                 kwarg_names_unset_local.remove(arg_names[k])
             for kwarg in kwargs:
-                if isignore and kwarg not in ignore:
-                    arg_dict[kwarg] = kwargs[kwarg]
+                arg_dict[kwarg] = kwargs[kwarg]
                 kwarg_names_unset_local.remove(kwarg)
             for kwarg in kwarg_names_unset_local: 
-                if isignore and kwarg not in ignore:
-                    arg_dict[kwarg] = default_kwarg_vals[kwarg]
+                arg_dict[kwarg] = default_kwarg_vals[kwarg]
             tabledir = self.output_dir/funcname
             tabledir.mkdir(parents=True, exist_ok=True)
             load = run_exists(arg_dict, tabledir)
@@ -255,13 +251,13 @@ if __name__ == '__main__':
     print()
     memory = Memory(output_dir)
     
-    @memory.cache(verbose=1, ignore=['ignored_arg'])
-    def foo(arg1, arg2=3, ignored_arg=4):
+    @memory.cache(verbose=1)
+    def foo(arg1, arg2=3):
         return 2*arg1 + arg2
     
-    foo(1, 2, 3)
+    foo(1, 2)
     foo(1)
-    foo(1, 2, 2)
+    foo(1, 2)
     print()
 
 
