@@ -37,13 +37,15 @@ def run_exists(param_dict, output_dir, ignore_missing=False):
     if not table_path.exists():  # If the table hasn't been created yet.
         return False
     
-    param_df = pd.read_csv(table_path, index_col=0, dtype=str)
+    param_df = pd.read_csv(table_path, index_col=0, dtype=str,
+                           keep_default_na=False)
     same_keys = set(param_dict.keys()) ==  set(param_df.columns)
     if not ignore_missing and not same_keys:
         return False
     missing_cols = set(param_df.columns) - set(param_dict.keys())
     param_df = param_df.drop(columns=missing_cols)
     new_row = pd.DataFrame(param_dict, index=[0], dtype=str)
+    new_row = new_row.fillna('None')
     merged = pd.merge(param_df, new_row)
     if len(merged) == 0:
         return False
@@ -81,10 +83,12 @@ def get_run_entry(param_dict, output_dir, prompt_for_user_input=True):
             output_dir.mkdir(parents=True)
         param_df = pd.DataFrame(param_dict, index=[0], dtype=str)
         param_df.index.name = 'index'
+        param_df = param_df.fillna('None')
         param_df.to_csv(table_path)
         return 0
     
-    param_df = pd.read_csv(table_path, index_col=0, dtype=str)
+    param_df = pd.read_csv(table_path, index_col=0, dtype=str,
+                           keep_default_na=False)
     missing_keys =  set(param_df.columns) - set(param_dict.keys())
     if len(missing_keys) > 0 and not ignore_missing:
         print("""The following keys are in the run table but not in param_dict.
@@ -113,6 +117,7 @@ Enter value: """)
  set the values for previous runs.""")
 
     param_dict_row = pd.DataFrame(param_dict, index=[0], dtype=str)
+    param_dict_row = param_dict_row.fillna('None')
     # This merges while preserving the index
     merged = param_df.reset_index().merge(param_dict_row).set_index('index')
     if len(merged) == 0:
