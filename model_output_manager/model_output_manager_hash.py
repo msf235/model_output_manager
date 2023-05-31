@@ -135,16 +135,20 @@ class Memory:
                         if keysp[0] in arg_dict:
                             if keysp[1] in arg_dict[keysp[0]]:
                                 del arg_dict[keysp[0]][keysp[1]]
-            for key, val in arg_dict.items():
-                if isinstance(val, dict):
-                    arg_dict[key] = {key: value for key, value in sorted(arg_dict[key].items())}
+
+            def sort_nested_dict(inp_dict):
+                for key, val in inp_dict.items():
+                    if isinstance(val, dict):
+                        inp_dict[key] = {key: value for key, value
+                                         in sorted(inp_dict[key].items())}
+                        sort_nested_dict(inp_dict[key])
+            sort_nested_dict(arg_dict)
             funcdir = self.output_dir/funcname
             run_id = hashfn(str(arg_dict))
             filedir = funcdir/run_id
             filename = f'cache.pkl'
             filepath = filedir/filename
             load = filepath.exists()
-            # if load and not self.rerun:
             if load:
                 try:
                     if verbose >= 1:
