@@ -243,26 +243,27 @@ class Memory:
 if __name__ == '__main__':
     # Testing code
     output_dir = Path('output')
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-    d = {'a': 1, 'b': 2}
+    # if output_dir.exists():
+        # shutil.rmtree(output_dir)
+    # d = {'a': '1', 'b': '2'}
+    d = {'a': '1', 'b': 'na'}
     print(run_exists(d, output_dir)) 
     run_id = get_run_entry(d, output_dir)
-    print(run_exists(d, output_dir)) 
-    run_id = get_run_entry(d, output_dir)
-    d = {'a': 2, 'b': 2}
-    run_id = get_run_entry(d, output_dir)
-    print()
-    memory = Memory(output_dir)
+    # print(run_exists(d, output_dir)) 
+    # run_id = get_run_entry(d, output_dir)
+    # d = {'a': '2', 'b': '2'}
+    # run_id = get_run_entry(d, output_dir)
+    # print()
+    # memory = Memory(output_dir)
     
-    @memory.cache(verbose=1, ignore=['ignored_arg'])
-    def foo(arg1, arg2=3, ignored_arg=4):
-        return 2*arg1 + arg2
+    # @memory.cache(verbose=1, ignore=['ignored_arg'])
+    # def foo(arg1, arg2=3, ignored_arg=4):
+        # return 2*arg1 + arg2
     
-    foo(1, 2, 3)
-    foo(1)
-    foo(1, 2, 2)
-    print()
+    # foo(1, 2, 3)
+    # foo(1)
+    # foo(1, 2, 2)
+    # print()
 
 
     
