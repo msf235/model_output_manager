@@ -85,7 +85,7 @@ class Memory:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.rerun = rerun
 
-    def cache(self, func=None, ignore=None, verbose=1):
+    def cache(self, func=None, ignore=None, extra_vars=None, verbose=1):
         """
 
         Parameters
@@ -97,10 +97,12 @@ class Memory:
         verbose: integer
             The verbosity mode of the function.
         """
+        # print(extra_vars)
         if func is None:
             # Partial application, to be able to specify extra keyword
             # arguments in decorators
-            return functools.partial(self.cache, ignore=ignore, verbose=verbose)
+            return functools.partial(self.cache, ignore=ignore,
+                                     extra_vars=extra_vars, verbose=verbose)
         signature = inspect.signature(func)
         arg_names = list(signature.parameters.keys())
         kwarg_names_unset = set(arg_names)
@@ -123,6 +125,9 @@ class Memory:
                 kwarg_names_unset_local.remove(kwarg)
             for kwarg in kwarg_names_unset_local: 
                 arg_dict[kwarg] = default_kwarg_vals[kwarg]
+            if extra_vars is not None:
+                for key, value in extra_vars.items():
+                    arg_dict[key] = value
             arg_dict = {key: copy.copy(value) for key, value in
                         sorted(arg_dict.items())}
             if ignore is not None:
